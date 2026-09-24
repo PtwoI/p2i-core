@@ -1,20 +1,22 @@
 # p2i-core
 
-The Python engine for P2I: PyTorch tracing, observed Model IR, editable ArchitectureIR, module adapters, Harness, validation, build/retrace, skills and evaluation.
+Local-first PyTorch tracing, observed `ModelIR`, editable `ArchitectureIR`,
+`Harness`, deterministic reconstruction, and the skill registry.
 
-## Boundary
+Install from this checkout with `python -m pip install -e '.[test]'`. This
+distribution owns the `p2i` import. Basic usage:
 
-This repository will own the existing `p2i` Python import and its JSON schemas. Core must run locally without a browser, FastAPI, CLI or AI provider. It must not import the SDK, GUI, CLI or AI plugin.
+```python
+import p2i
+ir = p2i.trace(model, example_inputs=(x,))
+ir.save("model.json")
+```
 
-## Migration status
+`p2i.serve(ir)` remains available when the separate `p2i-gui` package is
+installed. Runtime tracing, actions, adapters, skill schemas, the in-process
+Harness, and serialized IR remain in core. Frontend assets, FastAPI, the
+terminal entry point, and any external AI integration are separate optional
+repositories. Core never imports those packages during normal tracing.
 
-**Repository initialized; implementation has not moved yet.** The tested package and examples remain at [PtwoI/p2i](https://github.com/PtwoI/p2i). Continue installing and running that repository until the extraction passes the original Python tests, IR compatibility tests and package smoke tests.
-
-## Related components
-
-- [p2i-sdk](https://github.com/PtwoI/p2i-sdk): typed client and tool protocol
-- [p2i-gui](https://github.com/PtwoI/p2i-gui): local web explorer
-- [p2i-cli](https://github.com/PtwoI/p2i-cli): terminal commands
-- [p2i-ai-plugin](https://github.com/PtwoI/p2i-ai-plugin): optional external-agent adapters
-
-MIT licensed.
+Run `python -m pytest -q` after installation. See
+[PtwoI/p2i](https://github.com/PtwoI/p2i) for the original project history.
