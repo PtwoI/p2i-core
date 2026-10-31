@@ -1,4 +1,5 @@
 from copy import deepcopy
+from contextlib import nullcontext
 import traceback
 import torch
 from p2i.analyze.tree import tensors
@@ -49,7 +50,14 @@ def validate_architecture(arch,*,originals=None,registry=None,args=None,kwargs=N
             hooks.append(module.register_forward_pre_hook(pre,with_kwargs=True))
             hooks.append(module.register_forward_hook(post,with_kwargs=True))
         va,vk=deepcopy((args,kwargs or {}))
-        with torch.random.fork_rng(devices=devices):
+        # cuDNN does not retain RNN backward intermediates in eval mode. Native
+        # kernels allow gradient validation without changing the model's modes.
+        eval_cuda_rnn = backward and any(
+            isinstance(module, torch.nn.RNNBase) and not module.training
+            and any(parameter.is_cuda for parameter in module.parameters())
+            for module in trial.modules())
+        backend = torch.backends.cudnn.flags(enabled=False) if eval_cuda_rnn else nullcontext()
+        with backend, torch.random.fork_rng(devices=devices):
             with torch.set_grad_enabled(backward):out=trial(*va,**vk)
             report.forward_valid=True
             if report.shape_valid is not False:report.shape_valid=True

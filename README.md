@@ -83,3 +83,48 @@ included. Save with `include_inputs=False` when examples should be omitted;
 the resulting model still loads for PyTorch use, but cannot be retraced until
 you start a Harness with new example inputs. Use `device="cuda"` on load to
 move a model and its examples together.
+
+## Recurrent models and connected edits (0.4.2)
+
+RNN, LSTM and GRU have constructor adapters, including stacked/bidirectional
+variants, RNN nonlinearity and LSTM projection size. `make_demo("rnn")`,
+`make_demo("lstm")` and `make_demo("gru")` provide offline classifiers with
+independently restorable checkpoints. Recurrent state tuples are retained in
+observations; editing a hidden width and its classifier input is an atomic batch.
+
+```python
+plan = harness.plan_edit("layers.0", "out_features", 24,
+                         expected_revision=harness.architecture().revision)
+print(plan["notes"], plan["unresolved"])
+assert harness.preview(plan["action"]).success
+harness.apply(plan["action"])
+```
+
+Suggestions follow explicit Sequential order through known dimension-preserving
+modules, updating Linear inputs or Conv inputs and intervening BatchNorm sizes.
+Shared consumers, flattening and arbitrary custom forwards require explicit
+edits. The proposal does not mutate the session and still requires normal
+preview/apply validation. Newly inserted modules inherit the source model's
+reference device and dtype; heterogeneous device layouts require explicit adapters.
+
+### External compatibility and GPU checks
+
+```bash
+python -m pip install -e '.[test,compatibility]'
+HF_HUB_OFFLINE=1 python -m pytest -q tests/test_compatibility.py
+P2I_TEST_DEVICE=cuda HF_HUB_OFFLINE=1 python -m pytest -q tests/test_compatibility.py
+```
+
+The suite uses TorchVision ResNet18 and MobileNetV3-Small, and a small configured
+Hugging Face BERT, all with random weights and no model downloads. It verifies
+runtime capture, a classifier edit, exact checkpoint restoration with the source
+template, backward validation and a real optimizer step. This checks library
+compatibility, not pretrained accuracy or large-model memory scalability.
+
+CPU compatibility runs automatically in CI. CUDA checks additionally exercise
+recurrent round trips and device inheritance for inserted modules. Run them on a
+CUDA-capable machine, or select `cuda` when manually dispatching the external
+compatibility workflow on a self-hosted runner labeled `linux`, `x64`, `gpu`.
+An explicit CUDA request fails if no GPU is available. CPU CI success does not
+indicate a GPU run. The development environment used for this change has no CUDA
+GPU, so its GPU verification remains to be executed on such a runner.

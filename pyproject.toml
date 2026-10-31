@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "p2i-core"
-version = "0.4.1"
+version = "0.4.2"
 description = "Local-first PyTorch model analysis, IR, architecture harness and skills"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -13,6 +13,7 @@ dependencies = ["torch>=2.5", "pydantic>=2.7,<3"]
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
+compatibility = ["torchvision>=0.20,<0.22", "transformers>=4.48,<4.49"]
 
 [project.urls]
 Repository = "https://github.com/PtwoI/p2i-core"

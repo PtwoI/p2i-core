@@ -55,6 +55,10 @@ class Harness(SkillHarnessMixin):
         return obj
     def architecture(self):
         with self._lock:return self._arch.model_copy(deep=True)
+    def plan_edit(self, target, parameter, value, *, expected_revision=None):
+        """Suggest a revision-bound batch; preview/apply still perform validation."""
+        from .planning import plan_parameter_edit
+        return plan_parameter_edit(self, target, parameter, value, expected_revision)
     def save(self,path,*,include_inputs=True):
         """Save structure, weights and optional examples as a P2I checkpoint."""
         from p2i.checkpoint import save_checkpoint
