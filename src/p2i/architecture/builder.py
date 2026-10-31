@@ -81,18 +81,19 @@ def build_architecture(architecture,*,originals=None,registry=None):
             raise BuildError(str(exc),nid) from exc
     model=construct(arch.root_id,'')
     # Preserve explicitly tied parameter objects across distinct module instances.
-    ties={}
-    for nid,old in originals.items():
-        if nid not in memo:continue
-        for key,value in old.named_parameters(recurse=False):ties.setdefault(id(value),[]).append((nid,key))
-    for entries in ties.values():
-        if len(entries)<2:continue
-        available=[(memo[nid],key) for nid,key in entries if key in memo[nid]._parameters and memo[nid]._parameters[key] is not None]
-        if len(available)<2:continue
-        first=available[0][0]._parameters[available[0][1]]
-        for module,key in available[1:]:
-            if module._parameters[key].shape!=first.shape:raise BuildError('Edit would break a tied parameter; coordinate all tied dimensions')
-            module._parameters[key]=first
+    for method,attribute,label in (('named_parameters','_parameters','parameter'),('named_buffers','_buffers','buffer')):
+        ties={}
+        for nid,old in originals.items():
+            if nid not in memo:continue
+            for key,value in getattr(old,method)(recurse=False,remove_duplicate=False):ties.setdefault(id(value),[]).append((nid,key))
+        for entries in ties.values():
+            if len(entries)<2:continue
+            available=[(memo[nid],key) for nid,key in entries if key in getattr(memo[nid],attribute) and getattr(memo[nid],attribute)[key] is not None]
+            if len(available)<2:continue
+            first=getattr(available[0][0],attribute)[available[0][1]]
+            for module,key in available[1:]:
+                if getattr(module,attribute)[key].shape!=first.shape:raise BuildError(f'Edit would break a tied {label}; coordinate all tied dimensions')
+                getattr(module,attribute)[key]=first
     for nid,old in originals.items():
         if nid not in memo:report.dropped.extend(f'{nid}:{key}' for key in old.state_dict() if '.' not in key)
     return model,report,paths
