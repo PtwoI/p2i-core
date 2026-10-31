@@ -47,8 +47,8 @@ class StandardAdapter(ModuleAdapter):
     def validate(self,p):
         extra=set(p)-set(self.fields)
         if extra:raise ValueError(f'Unsupported constructor parameters: {sorted(extra)}')
-        positive={'in_features','out_features','in_channels','out_channels','groups','num_embeddings','embedding_dim','embed_dim','num_heads','num_features','kdim','vdim'}
-        boolean={'bias','inplace','elementwise_affine','affine','track_running_stats','batch_first','add_bias_kv','add_zero_attn','scale_grad_by_freq','sparse','ceil_mode','return_indices','count_include_pad'}
+        positive={'in_features','out_features','in_channels','out_channels','groups','num_embeddings','embedding_dim','embed_dim','num_heads','num_features','kdim','vdim','input_size','hidden_size','num_layers'}
+        boolean={'bias','inplace','elementwise_affine','affine','track_running_stats','batch_first','add_bias_kv','add_zero_attn','scale_grad_by_freq','sparse','ceil_mode','return_indices','count_include_pad','bidirectional'}
         for k,v in p.items():
             if k in positive and v is not None and (type(v) is not int or v<=0):raise ValueError(f'{k} must be a positive integer')
             if k in boolean and type(v) is not bool:raise ValueError(f'{k} must be boolean')
@@ -61,6 +61,9 @@ class StandardAdapter(ModuleAdapter):
                 if not values or any(x is not None and (type(x) is not int or x<=0) for x in values):raise ValueError(f'{k} must contain positive integers')
             if k in {'start_dim','end_dim','padding_idx'} and v is not None and type(v) is not int:raise ValueError(f'{k} must be integer')
         if 'approximate' in p and p['approximate'] not in ('none','tanh'):raise ValueError('approximate must be none or tanh')
+        if 'nonlinearity' in p and p['nonlinearity'] not in ('tanh','relu'):raise ValueError('nonlinearity must be tanh or relu')
+        if 'proj_size' in p and (type(p['proj_size']) is not int or p['proj_size']<0 or p['proj_size']>=p['hidden_size']):
+            raise ValueError('proj_size must be a nonnegative integer smaller than hidden_size')
         if 'padding_mode' in p and p['padding_mode'] not in ('zeros','reflect','replicate','circular'):raise ValueError('Invalid padding_mode')
         if 'embed_dim' in p and 'num_heads' in p and p['embed_dim']%p['num_heads']:
             raise ValueError(f"Cannot set num_heads={p['num_heads']}: embed_dim={p['embed_dim']} is not divisible by it")
@@ -79,6 +82,9 @@ _add(nn.LayerNorm,'normalized_shape eps elementwise_affine bias')
 for cls in (nn.BatchNorm1d,nn.BatchNorm2d):_add(cls,'num_features eps momentum affine track_running_stats')
 _add(nn.Embedding,'num_embeddings embedding_dim padding_idx max_norm norm_type scale_grad_by_freq sparse')
 _add(nn.MultiheadAttention,'embed_dim num_heads dropout bias add_bias_kv add_zero_attn kdim vdim batch_first',owns_children=True)
+for cls in (nn.RNN,nn.LSTM,nn.GRU):
+    fields='input_size hidden_size num_layers bias batch_first dropout bidirectional'
+    _add(cls,fields+(' nonlinearity' if cls is nn.RNN else ' proj_size' if cls is nn.LSTM else ''))
 for cls in (nn.Sequential,nn.ModuleList):_add(cls,container=True)
 _add(nn.Softmax,'dim')
 _add(nn.Identity);_add(nn.Flatten,'start_dim end_dim')

@@ -34,6 +34,9 @@ def _builtin_spec(module):
     from p2i.examples.simple_mlp import SimpleMLP
     from p2i.examples.cnn import TinyCNN
     from p2i.examples.transformer import TinyTransformer, TransformerBlock, SelfAttention
+    from p2i.examples.recurrent import RecurrentClassifier
+    if type(module) is RecurrentClassifier:
+        return {'name': 'recurrent', 'parameters': {'kind': module.kind}}
     if type(module) is SimpleMLP:
         return {'name': 'mlp', 'parameters': {}}
     if type(module) is TinyCNN:
@@ -51,8 +54,9 @@ def _builtin_model(spec):
     from p2i.examples.simple_mlp import SimpleMLP
     from p2i.examples.cnn import TinyCNN
     from p2i.examples.transformer import TinyTransformer, TransformerBlock, SelfAttention
+    from p2i.examples.recurrent import RecurrentClassifier
     factories = {'mlp': SimpleMLP, 'cnn': TinyCNN, 'transformer': TinyTransformer,
-                 'block': TransformerBlock, 'attention': SelfAttention}
+                 'block': TransformerBlock, 'attention': SelfAttention, 'recurrent': RecurrentClassifier}
     if spec['name'] not in factories:
         raise ValueError('Unknown built-in checkpoint template')
     return factories[spec['name']](**spec['parameters'])

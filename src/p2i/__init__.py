@@ -6,7 +6,7 @@ from .architecture import ArchitectureIR, build, register_module_adapter, Module
 from .harness import Harness
 from .checkpoint import load_model
 
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 
 def serve(ir, *, host="127.0.0.1", port=8000):
     """Serve with the optional GUI package, retaining the Phase 1 API."""

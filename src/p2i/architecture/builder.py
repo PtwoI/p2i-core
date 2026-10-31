@@ -12,6 +12,9 @@ def build_architecture(architecture,*,originals=None,registry=None):
     arch=ArchitectureIR.model_validate(architecture.model_dump() if isinstance(architecture,ArchitectureIR) else architecture)
     originals=originals or {};registry=registry or default_registry
     nodes={n.id:n for n in arch.nodes};memo={};report=WeightTransferReport();paths={}
+    root_original=originals.get(arch.root_id)
+    default_reference=next(iter(root_original.parameters()),None) if root_original is not None else None
+    if default_reference is None and root_original is not None:default_reference=next(iter(root_original.buffers()),None)
     devices=list(range(torch.cuda.device_count())) if torch.cuda.is_initialized() else []
     def construct(nid,path):
         paths[path]=nid
@@ -26,6 +29,7 @@ def build_architecture(architecture,*,originals=None,registry=None):
                     module=adapter.build(deepcopy(n.parameters))
                 reference=next(iter(old.parameters()),None) if old is not None else None
                 if reference is None and old is not None:reference=next(iter(old.buffers()),None)
+                if reference is None:reference=default_reference
                 if reference is not None:
                     module.to(device=reference.device)
                     if reference.is_floating_point() or reference.is_complex():module.to(dtype=reference.dtype)
