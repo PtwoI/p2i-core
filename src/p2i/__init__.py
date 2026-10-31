@@ -4,8 +4,9 @@ from .serialization.json import load
 
 from .architecture import ArchitectureIR, build, register_module_adapter, ModuleAdapter, ModuleAdapterRegistry
 from .harness import Harness
+from .checkpoint import load_model
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 def serve(ir, *, host="127.0.0.1", port=8000):
     """Serve with the optional GUI package, retaining the Phase 1 API."""
@@ -15,7 +16,7 @@ def serve(ir, *, host="127.0.0.1", port=8000):
         raise RuntimeError("Install p2i-gui to use p2i.serve()") from exc
     return gui_serve(ir, host=host, port=port)
 
-__all__ = ["ModelIR", "trace", "load", "serve", "Harness", "ArchitectureIR", "build", "register_module_adapter", "ModuleAdapter", "ModuleAdapterRegistry"]
+__all__ = ["ModelIR", "trace", "load", "load_model", "serve", "Harness", "ArchitectureIR", "build", "register_module_adapter", "ModuleAdapter", "ModuleAdapterRegistry"]
 
 from .skills import SkillRegistry, SkillSpec, TensorContract, ingest_skill, extract_skill, skill_from_subgraph, compare_evaluations
 from .actions import ReplaceWithSkill, InsertSkill

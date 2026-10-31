@@ -55,6 +55,15 @@ class Harness(SkillHarnessMixin):
         return obj
     def architecture(self):
         with self._lock:return self._arch.model_copy(deep=True)
+    def save(self,path,*,include_inputs=True):
+        """Save structure, weights and optional examples as a P2I checkpoint."""
+        from p2i.checkpoint import save_checkpoint
+        return save_checkpoint(self,path,include_inputs=include_inputs)
+    @classmethod
+    def load(cls,source,**options):
+        """Restore a checkpoint; custom forwards may require model=YourModel()."""
+        from p2i.checkpoint import load_checkpoint
+        return load_checkpoint(source,**options)
     def _resolve(self,arch,target):
         for n in arch.nodes:
             if n.id==target or n.qualified_name==target:return n
@@ -256,7 +265,7 @@ class Harness(SkillHarnessMixin):
             if node_id is not None:return self._resolve(self._arch,node_id).model_dump(mode='json')
             if level=='architecture':return self.architecture().model_dump(mode='json')
             if level!='summary':raise ValueError('level must be summary or architecture')
-            return {'model_name':self._arch.model_name,'revision':self._arch.revision,'observed_revision':self.observed_revision,'node_count':len(self._arch.nodes),'editable_node_count':sum(n.editable for n in self._arch.nodes),'observed_parameter_count':self.latest_ir.modules[0].parameter_count if self.latest_ir else None,'validation':self.last_validation.model_dump(mode='json') if self.last_validation else None,'recent_edits':self.history()[-5:],'weight_transfer':self.last_weights.model_dump(mode='json') if self.last_weights else None,'comparison':self.last_comparison}
+            return {'model_name':self._arch.model_name,'revision':self._arch.revision,'baseline_revision':min(self._revisions),'observed_revision':self.observed_revision,'node_count':len(self._arch.nodes),'editable_node_count':sum(n.editable for n in self._arch.nodes),'observed_parameter_count':self.latest_ir.modules[0].parameter_count if self.latest_ir else None,'validation':self.last_validation.model_dump(mode='json') if self.last_validation else None,'recent_edits':self.history()[-5:],'weight_transfer':self.last_weights.model_dump(mode='json') if self.last_weights else None,'comparison':self.last_comparison}
     def provenance(self):
         with self._lock:
             return [{"architecture_node_id":n.id,"built_path":n.qualified_name,"source_observed_module_id":n.source_observed_module_id,"latest_observed_module_id":n.latest_observed_module_id,"contracts_revision":n.contracts_revision} for n in self._arch.nodes]
