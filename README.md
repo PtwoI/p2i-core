@@ -128,3 +128,27 @@ compatibility workflow on a self-hosted runner labeled `linux`, `x64`, `gpu`.
 An explicit CUDA request fails if no GPU is available. CPU CI success does not
 indicate a GPU run. The development environment used for this change has no CUDA
 GPU, so its GPU verification remains to be executed on such a runner.
+
+## Architecture planning and device reports (0.4.3)
+
+Connected edits now include TorchVision ResNet BasicBlock/Bottleneck internal
+widths, Hugging Face BERT feed-forward widths, Sequential subclasses whose
+forward implementation is unchanged (including TorchVision ViT MLP blocks),
+and the bundled recurrent classifier's hidden/projection/direction changes.
+Residual outputs stay fixed when editing an internal width. MultiheadAttention
+head-count changes retain its embedding width and enforce divisibility.
+Unknown graph transformations still require explicit batches and execution
+validation; module names alone never establish a dependency.
+
+```bash
+python -m p2i.verification --device cpu --external --output cpu-report.json
+python -m p2i.verification --device cuda --external --output gpu-report.json
+```
+
+Reports include actual device availability, GPU name when used, and per-model
+trace/checkpoint/backward/optimizer outcomes. CUDA requests without a device
+fail with no executed cases. The same command is available as `p2i verify`.
+The CUDA workflow saves its report as an artifact. GPU execution still requires
+an actual CUDA machine or registered self-hosted runner; no CPU result is used
+as a substitute. The external suite includes a small real TorchVision ViT
+configuration in addition to ResNet18, MobileNetV3-Small and BERT.
