@@ -92,6 +92,41 @@ _add(nn.MaxPool2d,'kernel_size stride padding dilation return_indices ceil_mode'
 _add(nn.AvgPool2d,'kernel_size stride padding ceil_mode count_include_pad divisor_override')
 _add(nn.AdaptiveAvgPool2d,'output_size')
 
+class TransformerLayerAdapter(StandardAdapter):
+    """Own the internal attention/FFN registrations, exposing constructor edits."""
+    constructor_defaults = {'activation': 'relu'}
+    def __init__(self, cls):
+        super().__init__(cls, 'd_model nhead dim_feedforward dropout activation layer_norm_eps batch_first norm_first bias'.split(), owns_children=True)
+
+    def matches(self, module):
+        return super().matches(module) and module.activation in (torch.nn.functional.relu, torch.nn.functional.gelu)
+
+    def extract(self, module):
+        return dict(d_model=module.self_attn.embed_dim, nhead=module.self_attn.num_heads,
+            dim_feedforward=module.linear1.out_features, dropout=module.dropout.p,
+            activation='gelu' if module.activation is torch.nn.functional.gelu else 'relu',
+            layer_norm_eps=module.norm1.eps, batch_first=module.self_attn.batch_first,
+            norm_first=module.norm_first, bias=module.linear1.bias is not None)
+
+    def validate(self, p):
+        p = dict(dim_feedforward=2048, dropout=0.1, activation='relu', layer_norm_eps=1e-5,
+            batch_first=False, norm_first=False, bias=True) | p
+        super().validate(p)
+        for key in ('d_model', 'nhead', 'dim_feedforward'):
+            if type(p.get(key)) is not int or p[key] <= 0:
+                raise ValueError(f'{key} must be a positive integer')
+        if p['d_model'] % p['nhead']:
+            raise ValueError('d_model must be divisible by nhead')
+        if p.get('activation') not in ('relu', 'gelu'):
+            raise ValueError('activation must be relu or gelu')
+        if type(p.get('norm_first')) is not bool:
+            raise ValueError('norm_first must be boolean')
+        if type(p.get('layer_norm_eps')) not in (float, int) or not math.isfinite(p['layer_norm_eps']) or p['layer_norm_eps'] <= 0:
+            raise ValueError('layer_norm_eps must be positive and finite')
+
+for _layer in (nn.TransformerEncoderLayer, nn.TransformerDecoderLayer):
+    registry.register('torch.nn.' + _layer.__name__, TransformerLayerAdapter(_layer))
+
 def register_module_adapter(module_class,*,module_type=None):
     """Decorator registering a trusted, in-process adapter implementation."""
     def decorate(adapter_class):

@@ -26,6 +26,7 @@ def builtin_specs():
         for key in getattr(adapter,'fields',[]):
             parameter=signature.parameters.get(key)
             default=parameter.default if parameter and parameter.default is not inspect.Parameter.empty else None
+            default=getattr(adapter,'constructor_defaults',{}).get(key,default)
             required=parameter is not None and parameter.default is inspect.Parameter.empty
             kind='bool' if isinstance(default,bool) else 'float' if isinstance(default,float) else 'int' if isinstance(default,int) else 'str' if isinstance(default,str) else 'any'
             if key in {'in_features','out_features','in_channels','out_channels','num_heads','embed_dim','embedding_dim','num_embeddings','groups','num_features'}:kind='int'

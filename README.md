@@ -152,3 +152,30 @@ The CUDA workflow saves its report as an artifact. GPU execution still requires
 an actual CUDA machine or registered self-hosted runner; no CPU result is used
 as a substitute. The external suite includes a small real TorchVision ViT
 configuration in addition to ResNet18, MobileNetV3-Small and BERT.
+
+
+## Encoder-decoder architecture support (0.4.4)
+
+`p2i.examples.make_demo("seq2seq")` returns a small teacher-forced Transformer
+with token embeddings, sinusoidal positions, an encoder, a causally masked
+decoder, and decoder cross-attention. It uses randomly initialized weights and
+does not include a generation loop or pretrained translation capability.
+
+```python
+from p2i.examples import make_demo
+import p2i
+model, inputs = make_demo("seq2seq")
+harness = p2i.Harness(model, example_inputs=inputs)
+harness.retrace(static=False)
+harness.apply({"type":"set_parameter", "target":"decoder.0",
+               "parameter":"dim_feedforward", "value":48})
+harness.save("seq2seq.p2i")
+restored = p2i.Harness.load("seq2seq.p2i")
+```
+
+Trusted `nn.TransformerEncoderLayer` and `nn.TransformerDecoderLayer` adapters
+expose constructor parameters. They own attention, linear and normalization
+internals; edit the parent layer. Supported activations are relu/gelu. Parent
+edits refresh managed-child constructor dimensions immediately. Nested owned
+modules retain the outer owner's identity, and managed internals no longer need
+redundant custom reconstruction templates in checkpoints.
