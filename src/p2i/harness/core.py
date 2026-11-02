@@ -156,7 +156,15 @@ class Harness(SkillHarnessMixin):
         candidate=self._arch.model_copy(deep=True)
         self._edit(candidate,parsed);self._normalize(candidate)
         candidate=ArchitectureIR.model_validate(candidate.model_dump())
-        report,_,weights,_=validate_architecture(candidate,originals=self._originals,registry=self.registry,args=self._args,kwargs=self._kwargs)
+        report,built,weights,_=validate_architecture(candidate,originals=self._originals,registry=self.registry,args=self._args,kwargs=self._kwargs)
+        # Parent-owned internals must describe the newly built constructor too.
+        # Otherwise FFN/head edits leave misleading child dimensions until retrace.
+        if report.valid and built is not None:
+            for node in candidate.nodes:
+                if node.managed_by:
+                    module=built.get_submodule(node.qualified_name)
+                    adapter=self.registry.find(module)
+                    if adapter is not None:node.parameters=adapter.extract(module)
         return parsed,candidate,report,weights
     def _action(self,action,commit):
         with self._lock:
