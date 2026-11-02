@@ -27,6 +27,6 @@ def extract_architecture(model,observed=None,registry=None,seed=0):
         for r in node.children:managed(r.node_id,owner)
     for n in nodes:
         adapter=registry.adapters.get(n.module_type)
-        if adapter and adapter.owns_children:
+        if adapter and adapter.owns_children and not n.managed_by:
             for r in n.children:managed(r.node_id,n.id)
     return ArchitectureIR(model_name=type(model).__name__,root_id='a0',nodes=nodes,seed=seed),originals
