@@ -35,6 +35,11 @@ def _builtin_spec(module):
     from p2i.examples.cnn import TinyCNN
     from p2i.examples.transformer import TinyTransformer, TransformerBlock, SelfAttention
     from p2i.examples.recurrent import RecurrentClassifier
+    from p2i.examples.seq2seq import TinySeq2Seq, SinusoidalPositions
+    if type(module) is TinySeq2Seq:
+        return {'name': 'seq2seq', 'parameters': {key: getattr(module, key) for key in ('width', 'heads', 'depth', 'vocabulary')}}
+    if type(module) is SinusoidalPositions:
+        return {'name': 'positions', 'parameters': {'width': module.width, 'maximum': module.maximum}}
     if type(module) is RecurrentClassifier:
         return {'name': 'recurrent', 'parameters': {'kind': module.kind}}
     if type(module) is SimpleMLP:
@@ -55,8 +60,10 @@ def _builtin_model(spec):
     from p2i.examples.cnn import TinyCNN
     from p2i.examples.transformer import TinyTransformer, TransformerBlock, SelfAttention
     from p2i.examples.recurrent import RecurrentClassifier
+    from p2i.examples.seq2seq import TinySeq2Seq, SinusoidalPositions
     factories = {'mlp': SimpleMLP, 'cnn': TinyCNN, 'transformer': TinyTransformer,
-                 'block': TransformerBlock, 'attention': SelfAttention, 'recurrent': RecurrentClassifier}
+                 'block': TransformerBlock, 'attention': SelfAttention, 'recurrent': RecurrentClassifier,
+                 'seq2seq': TinySeq2Seq, 'positions': SinusoidalPositions}
     if spec['name'] not in factories:
         raise ValueError('Unknown built-in checkpoint template')
     return factories[spec['name']](**spec['parameters'])
@@ -81,7 +88,7 @@ def checkpoint_bytes(harness, *, include_inputs=True):
         source_paths = {id(m): p for p, m in harness._model.named_modules()} if harness._model is not None else {}
         templates = {}
         for node in harness._arch.nodes:
-            if node.module_type in harness.registry.adapters:
+            if node.managed_by or node.module_type in harness.registry.adapters:
                 continue
             original = harness._originals.get(node.id)
             if original is None:
@@ -179,7 +186,7 @@ def load_checkpoint(source, *, model=None, registry=None, skill_registry=None, d
     devices = list(range(torch.cuda.device_count())) if torch.cuda.is_initialized() else []
     with torch.random.fork_rng(devices=devices):
         for node in arch.nodes:
-            if node.module_type in obj.registry.adapters:
+            if node.managed_by or node.module_type in obj.registry.adapters:
                 continue
             spec = payload['templates'].get(node.id)
             if spec is None:
