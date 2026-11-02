@@ -17,22 +17,12 @@ def cpu_threads():
 
 
 def external_model(name, device):
-    if name == 'bert':
-        transformers = pytest.importorskip('transformers')
-        config = transformers.BertConfig(vocab_size=64, hidden_size=16, num_hidden_layers=1,
-            num_attention_heads=2, intermediate_size=32, return_dict=False, attn_implementation='eager')
-        model = transformers.BertModel(config)
-        inputs = (torch.randint(0, 64, (2, 6), device=device),)
-        target = 'pooler.dense'
-    else:
-        models = pytest.importorskip('torchvision.models')
-        model = getattr(models, name)(weights=None, num_classes=4)
-        inputs = (torch.randn(2, 3, 32, 32, device=device),)
-        target = 'fc' if name == 'resnet18' else 'classifier.3'
-    return model.to(device).eval(), inputs, target
+    from p2i.verification import make_case
+    pytest.importorskip('transformers' if name == 'bert' else 'torchvision')
+    return make_case(name, device)
 
 
-@pytest.mark.parametrize('name', ['resnet18', 'mobilenet_v3_small', 'bert'])
+@pytest.mark.parametrize('name', ['resnet18', 'mobilenet_v3_small', 'vit', 'bert'])
 def test_external_model_edit_restore_train(name):
     device = os.environ.get('P2I_TEST_DEVICE', 'cpu')
     if device.startswith('cuda') and not torch.cuda.is_available():
